@@ -141,13 +141,13 @@
           if (data && data.length > 0) {
             categories = data;
           } else {
-            // Default initial items if table is completely empty
+            // Default initial items if table is empty
             categories = [
-              { category: 'Shirts', count: 0 },
-              { category: 'Pants', count: 0 },
-              { category: 'Socks', count: 0 },
-              { category: 'Undergarments', count: 0 },
-              { category: 'Bedding', count: 0 }
+              { id: crypto.randomUUID(), category: 'Shirts', count: 0 },
+              { id: crypto.randomUUID(), category: 'Pants', count: 0 },
+              { id: crypto.randomUUID(), category: 'Socks', count: 0 },
+              { id: crypto.randomUUID(), category: 'Undergarments', count: 0 },
+              { id: crypto.randomUUID(), category: 'Bedding', count: 0 }
             ];
           }
         } catch (err) {
@@ -245,7 +245,7 @@
       if (supabaseClient) {
         try {
           const payload = categories.map(item => ({
-            ...(item.id ? { id: item.id } : {}),
+            id: item.id || crypto.randomUUID(),
             category: item.category,
             count: parseInt(item.count) || 0,
             updated_at: new Date().toISOString()
@@ -266,7 +266,7 @@
           document.getElementById('sync-status').className = 'text-xs text-emerald-600 font-medium';
         } catch (err) {
           console.error('Save failed:', err);
-          alert('Supabase error: ' + err.message + '\n\nMake sure RLS policies allow inserts/upserts on laundry_counts.');
+          alert('Supabase error: ' + err.message);
         }
       }
 
@@ -288,8 +288,9 @@
         return;
       }
 
-      // Optimistically push to local array
+      // Add with a generated UUID so id is never null
       categories.push({
+        id: crypto.randomUUID(),
         category: catName,
         count: 0
       });
@@ -297,7 +298,6 @@
       input.value = '';
       renderUI();
 
-      // Immediately persist to Supabase if connected
       if (supabaseClient) {
         await saveAllToSupabase();
       } else {
