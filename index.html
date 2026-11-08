@@ -1,594 +1,390 @@
 <!DOCTYPE html>
-<html lang="en" class="h-full bg-slate-50">
+<html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Minimal Laundry Tracker</title>
-    <!-- Tailwind CSS CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- FontAwesome Icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Inter Font -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <!-- Supabase JS Client library -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <!-- jsPDF & jsPDF-AutoTable CDN for PDF generation -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    fontFamily: {
-                        sans: ['Inter', 'sans-serif'],
-                    }
-                }
-            }
-        }
-    </script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Laundry Tracker</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Supabase JS Client -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- jsPDF & AutoTable plugin for PDF export -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
 </head>
-<body class="h-full text-slate-800 flex flex-col font-sans antialiased selection:bg-sky-100 selection:text-sky-800">
+<body class="bg-slate-50 min-h-screen text-slate-800 flex flex-col font-sans">
 
-    <!-- Header Navigation -->
-    <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
-        <div class="max-w-xl mx-auto px-4 h-16 flex items-center justify-between">
-            <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-sky-500 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-sky-200">
-                    <i class="fa-solid fa-basket-shopping text-lg"></i>
-                </div>
-                <div>
-                    <h1 class="font-bold text-base leading-tight text-slate-900 tracking-tight">Laundry Tracker</h1>
-                    <p id="connectionBadge" class="text-xs text-amber-600 font-medium flex items-center gap-1.5">
-                        <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span> Demo Mode (Local)
-                    </p>
-                </div>
-            </div>
+  <!-- Header -->
+  <header class="bg-indigo-600 text-white shadow-md">
+    <div class="max-w-3xl mx-auto px-4 py-4 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <i class="fa-solid font-bold fa-shirt text-2xl"></i>
+        <h1 class="text-xl font-bold tracking-wide">Laundry Tracker</h1>
+      </div>
+      <div id="connection-status-badge" class="text-xs bg-indigo-700/80 px-3 py-1.5 rounded-lg border border-indigo-500/50 flex items-center gap-1.5">
+        <span class="w-2 h-2 rounded-full bg-amber-400" id="status-dot"></span>
+        <span id="status-text">Checking Connection...</span>
+      </div>
+    </div>
+  </header>
 
-            <!-- Settings Button -->
-            <button onclick="openSettingsModal()" class="p-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 transition flex items-center gap-1.5 text-xs font-semibold">
-                <i class="fa-solid fa-gear text-sm"></i>
-                <span class="hidden sm:inline">Supabase</span>
-            </button>
-        </div>
-    </header>
+  <!-- Main Container -->
+  <main class="max-w-3xl mx-auto w-full px-4 py-6 flex-grow">
+    
+    <!-- Summary Header -->
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div>
+        <h2 class="text-sm font-semibold text-slate-500 uppercase tracking-wider">Total Clothes in Laundry</h2>
+        <div id="total-count" class="text-4xl font-extrabold text-indigo-600 mt-1">0</div>
+      </div>
 
-    <!-- Main Container -->
-    <main class="flex-1 max-w-xl w-full mx-auto px-4 py-6 space-y-5">
+      <!-- Main Action Buttons -->
+      <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+        <button id="save-btn" onclick="saveAllToSupabase()" class="flex-1 sm:flex-none bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-4 py-2.5 rounded-lg shadow-sm transition flex items-center justify-center gap-2 text-sm">
+          <i class="fa-solid fa-floppy-disk"></i> Save to DB
+        </button>
 
-        <!-- Total Count Summary Card -->
-        <section class="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-sm text-center relative overflow-hidden">
-            <div class="absolute -right-6 -top-6 w-24 h-24 bg-sky-50 rounded-full blur-2xl pointer-events-none"></div>
-            <p class="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Total Laundry Count</p>
-            <div class="flex items-center justify-center gap-2 mb-4">
-                <span id="totalItemsCount" class="text-5xl font-black text-slate-900 tracking-tight">0</span>
-                <span class="text-sm font-medium text-slate-500 self-end mb-1">items</span>
-            </div>
+        <button onclick="downloadPDF()" class="flex-1 sm:flex-none bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-4 py-2.5 rounded-lg shadow-sm transition flex items-center justify-center gap-2 text-sm">
+          <i class="fa-solid fa-file-pdf"></i> Download PDF
+        </button>
 
-            <!-- Action Bar: Save & Download PDF Buttons -->
-            <div class="flex items-center justify-center gap-3 pt-2 border-t border-slate-100">
-                <button onclick="saveAllCounts()" id="saveBtn" class="flex-1 py-2.5 px-4 bg-sky-600 hover:bg-sky-700 active:bg-sky-800 text-white font-semibold text-xs rounded-xl shadow-sm transition flex items-center justify-center gap-2">
-                    <i class="fa-solid fa-cloud-arrow-up"></i> Save to Database
-                </button>
-                <button onclick="downloadPDFReport()" class="flex-1 py-2.5 px-4 bg-slate-900 hover:bg-slate-800 active:bg-black text-white font-semibold text-xs rounded-xl shadow-sm transition flex items-center justify-center gap-2">
-                    <i class="fa-solid fa-file-pdf text-rose-400"></i> Download PDF
-                </button>
-            </div>
-        </section>
+        <button onclick="resetAllCounts()" class="flex-1 sm:flex-none bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-600 font-medium px-3 py-2.5 rounded-lg border border-slate-200 transition flex items-center justify-center gap-2 text-sm">
+          <i class="fa-solid fa-rotate-left"></i> Reset
+        </button>
+      </div>
+    </div>
 
-        <!-- Categories List Section -->
-        <section class="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-sm space-y-4">
+    <!-- Category List Card -->
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mb-6">
+      <div class="p-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+        <h3 class="font-semibold text-slate-700 text-sm">Categories & Counts</h3>
+        <span id="sync-status" class="text-xs text-slate-400">Up to date</span>
+      </div>
+
+      <!-- Dynamic Item List -->
+      <div id="category-list" class="divide-y divide-slate-100">
+        <div class="p-8 text-center text-slate-400 text-sm">Loading categories...</div>
+      </div>
+    </div>
+
+    <!-- Add New Category Form -->
+    <form onsubmit="handleAddCategory(event)" class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 flex gap-2">
+      <input 
+        type="text" 
+        id="new-category-input" 
+        placeholder="Add custom category (e.g., Hoodies, Towels)..." 
+        required 
+        class="flex-1 px-4 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+      />
+      <button 
+        type="submit" 
+        class="bg-slate-800 hover:bg-slate-900 text-white text-sm px-4 py-2 rounded-lg font-medium transition flex items-center gap-1.5"
+      >
+        <i class="fa-solid fa-plus text-xs"></i> Add Category
+      </button>
+    </form>
+  </main>
+
+  <!-- JavaScript Application Logic -->
+  <script>
+    // ==========================================
+    // PASTE YOUR SUPABASE CREDENTIALS HERE:
+    // ==========================================
+    const SUPABASE_URL = "https://vimnqjbupcffqzuvlpbi.supabase.co";
+    const SUPABASE_KEY = "sb_publishable_LNTQ1QGQjkdDSbKIDNDTuQ_e0UJ59hK";
+    // ==========================================
+
+    // State management
+    let supabaseClient = null;
+    let categories = [
+      { id: '1', category: 'Shirts', count: 0 },
+      { id: '2', category: 'Pants', count: 0 },
+      { id: '3', category: 'Socks', count: 0 },
+      { id: '4', category: 'Undergarments', count: 0 },
+      { id: '5', category: 'Bedding', count: 0 }
+    ];
+
+    // Initialization
+    document.addEventListener('DOMContentLoaded', () => {
+      initSupabase();
+      fetchCategories();
+    });
+
+    function initSupabase() {
+      const statusDot = document.getElementById('status-dot');
+      const statusText = document.getElementById('status-text');
+
+      if (SUPABASE_URL && SUPABASE_KEY && SUPABASE_URL !== "https://vimnqjbupcffqzuvlpbi.supabase.co" && window.supabase) {
+        try {
+          supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+          statusDot.className = "w-2 h-2 rounded-full bg-emerald-400 animate-pulse";
+          statusText.innerText = "Connected to Supabase";
+        } catch (err) {
+          console.error("Failed to initialize Supabase client", err);
+          supabaseClient = null;
+          statusDot.className = "w-2 h-2 rounded-full bg-rose-400";
+          statusText.innerText = "Connection Failed";
+        }
+      } else {
+        supabaseClient = null;
+        statusDot.className = "w-2 h-2 rounded-full bg-amber-400";
+        statusText.innerText = "Local Mode (Add Credentials)";
+      }
+    }
+
+    async function fetchCategories() {
+      if (supabaseClient) {
+        try {
+          const { data, error } = await supabaseClient
+            .from('laundry_counts')
+            .select('*')
+            .order('category', { ascending: true });
+
+          if (error) throw error;
+
+          if (data && data.length > 0) {
+            categories = data;
+          }
+        } catch (err) {
+          console.error('Error fetching data from Supabase:', err.message);
+        }
+      }
+      renderUI();
+    }
+
+    function renderUI() {
+      const listContainer = document.getElementById('category-list');
+      const totalDisplay = document.getElementById('total-count');
+
+      if (!categories || categories.length === 0) {
+        listContainer.innerHTML = `<div class="p-8 text-center text-slate-400 text-sm">No categories available. Add one below!</div>`;
+        totalDisplay.innerText = '0';
+        return;
+      }
+
+      let total = 0;
+      listContainer.innerHTML = categories.map((item, index) => {
+        const itemVal = parseInt(item.count) || 0;
+        total += itemVal;
+
+        return `
+          <div class="p-4 flex items-center justify-between gap-4 hover:bg-slate-50/50 transition">
+            <span class="font-medium text-slate-800 text-sm sm:text-base">${escapeHtml(item.category)}</span>
             
-            <div class="flex items-center justify-between pb-3 border-b border-slate-100">
-                <h2 class="font-bold text-slate-800 text-sm flex items-center gap-2">
-                    <i class="fa-solid fa-list-ol text-sky-500"></i> Categories
-                </h2>
-                <button onclick="confirmResetAll()" class="text-xs font-medium text-rose-600 hover:text-rose-700 hover:bg-rose-50 px-3 py-1.5 rounded-xl transition flex items-center gap-1">
-                    <i class="fa-solid fa-rotate-left"></i> Reset All
-                </button>
+            <div class="flex items-center gap-2">
+              <button 
+                onclick="updateCount(${index}, -1)"
+                class="w-9 h-9 flex items-center justify-center rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-slate-600 font-bold active:scale-95 transition shadow-xs"
+              >
+                -
+              </button>
+              
+              <input 
+                type="number" 
+                min="0"
+                value="${itemVal}"
+                onchange="setDirectCount(${index}, this.value)"
+                class="w-16 h-9 text-center border border-slate-200 rounded-lg text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+
+              <button 
+                onclick="updateCount(${index}, 1)"
+                class="w-9 h-9 flex items-center justify-center rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-slate-600 font-bold active:scale-95 transition shadow-xs"
+              >
+                +
+              </button>
+
+              <button 
+                onclick="deleteCategory(${index})"
+                title="Delete Category"
+                class="w-9 h-9 flex items-center justify-center text-slate-300 hover:text-rose-500 transition ml-2"
+              >
+                <i class="fa-solid fa-trash-can text-sm"></i>
+              </button>
             </div>
+          </div>
+        `;
+      }).join('');
 
-            <!-- Category Rows Container -->
-            <div id="categoryList" class="space-y-3">
-                <!-- Dynamic categories populated here -->
-            </div>
+      totalDisplay.innerText = total.toString();
+    }
 
-            <!-- Add New Category Form -->
-            <form onsubmit="handleAddCategory(event)" class="pt-3 border-t border-slate-100 flex gap-2">
-                <input type="text" id="newCategoryName" placeholder="New category (e.g., Towels)" required
-                    class="flex-1 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:bg-white transition">
-                <button type="submit" class="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 active:bg-black text-white font-medium text-sm rounded-2xl transition flex items-center gap-1.5 shadow-sm">
-                    <i class="fa-solid fa-plus text-xs"></i> Add
-                </button>
-            </form>
-        </section>
+    function updateCount(index, change) {
+      const current = parseInt(categories[index].count) || 0;
+      const updated = Math.max(0, current + change);
+      categories[index].count = updated;
+      markUnsaved();
+      renderUI();
+    }
 
-    </main>
+    function setDirectCount(index, val) {
+      const parsed = Math.max(0, parseInt(val) || 0);
+      categories[index].count = parsed;
+      markUnsaved();
+      renderUI();
+    }
 
-    <!-- Supabase Credentials Settings Modal -->
-    <div id="settingsModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
-        <div class="bg-white w-full max-w-md rounded-3xl shadow-xl overflow-hidden p-6 space-y-4">
-            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
-                <h3 class="font-bold text-slate-800 text-base flex items-center gap-2">
-                    <i class="fa-solid fa-database text-sky-500"></i> Supabase Setup
-                </h3>
-                <button onclick="closeSettingsModal()" class="w-8 h-8 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600 flex items-center justify-center transition">
-                    <i class="fa-solid fa-xmark"></i>
-                </button>
-            </div>
+    function markUnsaved() {
+      const statusEl = document.getElementById('sync-status');
+      statusEl.innerText = 'Unsaved changes';
+      statusEl.className = 'text-xs text-amber-600 font-medium';
+    }
 
-            <p class="text-xs text-slate-500">
-                Enter your Supabase credentials to sync your laundry counts across all your devices.
-            </p>
+    async function saveAllToSupabase() {
+      const saveBtn = document.getElementById('save-btn');
+      const originalText = saveBtn.innerHTML;
 
-            <form onsubmit="saveSupabaseSettings(event)" class="space-y-3">
-                <div>
-                    <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Project URL</label>
-                    <input type="url" id="supabaseUrlInput" placeholder="https://your-project.supabase.co" 
-                        class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono focus:outline-none focus:ring-2 focus:ring-sky-500 transition">
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Anon Key</label>
-                    <input type="password" id="supabaseKeyInput" placeholder="eyJhbGciOiJIUzI1Ni..." 
-                        class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono focus:outline-none focus:ring-2 focus:ring-sky-500 transition">
-                </div>
+      saveBtn.disabled = true;
+      saveBtn.innerHTML = `<i class="fa-solid fa-spinner animate-spin"></i> Saving...`;
 
-                <div class="pt-3 flex justify-end gap-2">
-                    <button type="button" onclick="clearSupabaseSettings()" class="px-3 py-2 text-xs font-medium text-rose-600 hover:bg-rose-50 rounded-xl transition">
-                        Clear Credentials
-                    </button>
-                    <button type="submit" class="px-5 py-2 bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold rounded-xl shadow-sm transition">
-                        Connect Supabase
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
+      if (supabaseClient) {
+        try {
+          const payload = categories.map(item => ({
+            ...(item.id && !item.id.toString().startsWith('temp-') ? { id: item.id } : {}),
+            category: item.category,
+            count: parseInt(item.count) || 0,
+            updated_at: new Date().toISOString()
+          }));
 
-    <!-- Confirmation Modal -->
-    <div id="confirmModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
-        <div class="bg-white w-full max-w-sm rounded-3xl shadow-xl overflow-hidden p-6 space-y-4 text-center">
-            <div class="w-12 h-12 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mx-auto text-xl">
-                <i class="fa-solid fa-rotate-left"></i>
-            </div>
-            <div>
-                <h3 class="font-bold text-slate-900 text-base">Reset All Counts to 0?</h3>
-                <p class="text-xs text-slate-500 mt-1">This will zero out all current laundry numbers.</p>
-            </div>
-            <div class="flex gap-2 pt-2">
-                <button onclick="closeConfirmModal()" class="flex-1 py-2.5 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition">
-                    Cancel
-                </button>
-                <button onclick="executeResetAll()" class="flex-1 py-2.5 text-xs font-semibold text-white bg-rose-600 hover:bg-rose-700 rounded-xl transition shadow-sm">
-                    Yes, Reset
-                </button>
-            </div>
-        </div>
-    </div>
+          const { data, error } = await supabaseClient
+            .from('laundry_counts')
+            .upsert(payload, { onConflict: 'category' })
+            .select();
 
-    <!-- Toast Notification -->
-    <div id="toast" class="fixed bottom-5 right-5 bg-slate-900 text-white text-xs px-4 py-3 rounded-2xl shadow-xl flex items-center gap-2.5 translate-y-20 opacity-0 transition-all duration-300 z-50">
-        <i id="toastIcon" class="fa-solid fa-circle-check text-emerald-400"></i>
-        <span id="toastMsg">Updated</span>
-    </div>
+          if (error) throw error;
 
-    <!-- Application Script -->
-    <script>
-        // Default local items fallback
-        const DEFAULT_CATEGORIES = [
-            { id: '1', category: 'Shirts', count: 0 },
-            { id: '2', category: 'Pants', count: 0 },
-            { id: '3', category: 'Socks', count: 0 },
-            { id: '4', category: 'Undergarments', count: 0 },
-            { id: '5', category: 'Bedding', count: 0 }
-        ];
+          if (data) {
+            categories = data;
+          }
 
-        let supabaseClient = null;
-        let categories = [];
-        let isSupabaseActive = false;
-
-        // Init App
-        window.addEventListener('DOMContentLoaded', () => {
-            initSupabase();
-            fetchData();
-        });
-
-        // Initialize Supabase Client if credentials exist
-        function initSupabase() {
-            const url = localStorage.getItem('supabase_url');
-            const key = localStorage.getItem('supabase_key');
-            const badge = document.getElementById('connectionBadge');
-
-            if (url && key && window.supabase) {
-                try {
-                    supabaseClient = window.supabase.createClient(url, key);
-                    isSupabaseActive = true;
-                    badge.className = "text-xs text-emerald-600 font-medium flex items-center gap-1.5";
-                    badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500"></span> Supabase Connected`;
-                } catch (e) {
-                    console.error("Supabase init error:", e);
-                    useDemoMode();
-                }
-            } else {
-                useDemoMode();
-            }
+          document.getElementById('sync-status').innerText = 'Saved to database';
+          document.getElementById('sync-status').className = 'text-xs text-emerald-600 font-medium';
+        } catch (err) {
+          console.error('Save failed:', err);
+          alert('Failed to save to Supabase: ' + err.message);
         }
+      } else {
+        document.getElementById('sync-status').innerText = 'Saved locally (No DB connected)';
+        document.getElementById('sync-status').className = 'text-xs text-slate-500';
+      }
 
-        function useDemoMode() {
-            isSupabaseActive = false;
-            supabaseClient = null;
-            const badge = document.getElementById('connectionBadge');
-            badge.className = "text-xs text-amber-600 font-medium flex items-center gap-1.5";
-            badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span> Demo Mode (Local)`;
+      saveBtn.disabled = false;
+      saveBtn.innerHTML = originalText;
+      renderUI();
+    }
+
+    async function handleAddCategory(e) {
+      e.preventDefault();
+      const input = document.getElementById('new-category-input');
+      const catName = input.value.trim();
+
+      if (!catName) return;
+
+      const exists = categories.some(c => c.category.toLowerCase() === catName.toLowerCase());
+      if (exists) {
+        alert('Category already exists!');
+        return;
+      }
+
+      const newItem = {
+        id: 'temp-' + Date.now(),
+        category: catName,
+        count: 0
+      };
+
+      categories.push(newItem);
+      input.value = '';
+
+      if (supabaseClient) {
+        await saveAllToSupabase();
+      } else {
+        markUnsaved();
+        renderUI();
+      }
+    }
+
+    async function deleteCategory(index) {
+      const target = categories[index];
+      if (!confirm(`Are you sure you want to remove "${target.category}"?`)) return;
+
+      if (supabaseClient && target.id && !target.id.toString().startsWith('temp-')) {
+        try {
+          const { error } = await supabaseClient
+            .from('laundry_counts')
+            .delete()
+            .eq('id', target.id);
+
+          if (error) throw error;
+        } catch (err) {
+          console.error('Delete failed:', err);
+          alert('Could not delete from Supabase: ' + err.message);
+          return;
         }
+      }
 
-        // Fetch Data from Supabase or LocalStorage
-        async function fetchData() {
-            if (isSupabaseActive && supabaseClient) {
-                try {
-                    const { data, error } = await supabaseClient
-                        .from('laundry_counts')
-                        .select('*')
-                        .order('created_at', { ascending: true, nullsFirst: false });
+      categories.splice(index, 1);
+      renderUI();
+    }
 
-                    if (error) throw error;
+    function resetAllCounts() {
+      if (!confirm('Reset all clothes counts to 0?')) return;
+      categories.forEach(item => item.count = 0);
+      markUnsaved();
+      renderUI();
+    }
 
-                    if (data && data.length > 0) {
-                        categories = data;
-                    } else {
-                        // If DB table is empty, seed defaults
-                        await seedDefaultSupabaseData();
-                    }
-                } catch (err) {
-                    console.warn("Falling back to local data due to fetch error:", err.message);
-                    loadLocalData();
-                }
-            } else {
-                loadLocalData();
-            }
-            render();
-        }
+    // Export PDF Summary Report
+    function downloadPDF() {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
 
-        // Seed initial categories to Supabase
-        async function seedDefaultSupabaseData() {
-            const seedPayload = DEFAULT_CATEGORIES.map(c => ({ category: c.category, count: 0 }));
-            const { data, error } = await supabaseClient
-                .from('laundry_counts')
-                .insert(seedPayload)
-                .select();
+      doc.setFontSize(20);
+      doc.setTextColor(79, 70, 229);
+      doc.text("Laundry Items Log Report", 14, 22);
 
-            if (!error && data) {
-                categories = data;
-            } else {
-                loadLocalData();
-            }
-        }
+      doc.setFontSize(10);
+      doc.setTextColor(100);
+      const today = new Date().toLocaleString();
+      doc.text(`Generated on: ${today}`, 14, 30);
 
-        // Local Storage Fallback
-        function loadLocalData() {
-            const stored = localStorage.getItem('local_laundry_counts');
-            if (stored) {
-                try {
-                    categories = JSON.parse(stored);
-                } catch (e) {
-                    categories = [...DEFAULT_CATEGORIES];
-                }
-            } else {
-                categories = [...DEFAULT_CATEGORIES];
-                saveLocalData();
-            }
-        }
+      const totalCount = categories.reduce((sum, item) => sum + (parseInt(item.count) || 0), 0);
+      doc.setFillColor(243, 244, 246);
+      doc.rect(14, 36, 182, 14, 'F');
+      doc.setFontSize(11);
+      doc.setTextColor(31, 41, 55);
+      doc.text(`Total Clothes in Laundry: ${totalCount} items`, 20, 45);
 
-        function saveLocalData() {
-            localStorage.setItem('local_laundry_counts', JSON.stringify(categories));
-        }
+      const tableData = categories.map((item, idx) => [
+        idx + 1,
+        item.category,
+        item.count,
+        item.updated_at ? new Date(item.updated_at).toLocaleDateString() : 'Today'
+      ]);
 
-        // Render UI
-        function render() {
-            const listContainer = document.getElementById('categoryList');
-            const totalDisplay = document.getElementById('totalItemsCount');
+      doc.autoTable({
+        startY: 56,
+        head: [['#', 'Category', 'Quantity', 'Last Update']],
+        body: tableData,
+        theme: 'striped',
+        headStyles: { fillColor: [79, 70, 229] },
+        styles: { fontSize: 10, cellPadding: 4 }
+      });
 
-            // Calculate total sum
-            const total = categories.reduce((sum, item) => sum + (parseInt(item.count) || 0), 0);
-            totalDisplay.innerText = total;
+      doc.save(`laundry_log_${new Date().toISOString().slice(0, 10)}.pdf`);
+    }
 
-            listContainer.innerHTML = '';
-
-            categories.forEach(item => {
-                const row = document.createElement('div');
-                row.className = "flex items-center justify-between p-3.5 bg-slate-50 border border-slate-200/80 rounded-2xl gap-3 transition hover:border-slate-300";
-
-                row.innerHTML = `
-                    <div class="flex-1 min-w-0">
-                        <span class="font-bold text-slate-800 text-sm truncate block">${escapeHtml(item.category)}</span>
-                    </div>
-
-                    <div class="flex items-center gap-2">
-                        <!-- Decrement button -->
-                        <button onclick="updateCount('${item.id}', -1)" 
-                            class="w-9 h-9 rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 active:bg-slate-200 flex items-center justify-center font-bold text-sm shadow-sm transition">
-                            <i class="fa-solid fa-minus text-xs"></i>
-                        </button>
-
-                        <!-- Input -->
-                        <input type="number" min="0" value="${item.count}" 
-                            onchange="setDirectCount('${item.id}', this.value)"
-                            class="w-14 h-9 bg-white border border-slate-200 rounded-xl text-center font-bold text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 shadow-sm">
-
-                        <!-- Increment button -->
-                        <button onclick="updateCount('${item.id}', 1)" 
-                            class="w-9 h-9 rounded-xl bg-sky-600 text-white hover:bg-sky-700 active:bg-sky-800 flex items-center justify-center font-bold text-sm shadow-sm transition shadow-sky-200">
-                            <i class="fa-solid fa-plus text-xs"></i>
-                        </button>
-
-                        <!-- Delete button -->
-                        <button onclick="deleteCategory('${item.id}')" title="Delete category"
-                            class="w-9 h-9 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 flex items-center justify-center transition ml-1">
-                            <i class="fa-solid fa-trash-can text-xs"></i>
-                        </button>
-                    </div>
-                `;
-                listContainer.appendChild(row);
-            });
-        }
-
-        // Update Count relative (+1 / -1)
-        async function updateCount(id, delta) {
-            const item = categories.find(c => c.id === id);
-            if (!item) return;
-
-            const newCount = Math.max(0, (parseInt(item.count) || 0) + delta);
-            await setDirectCount(id, newCount);
-        }
-
-        // Set Direct Count
-        async function setDirectCount(id, val) {
-            const countNum = Math.max(0, parseInt(val) || 0);
-            const item = categories.find(c => c.id === id);
-            if (!item) return;
-
-            item.count = countNum;
-            render();
-
-            if (!isSupabaseActive) {
-                saveLocalData();
-            }
-        }
-
-        // Save All Counts Explicitly to Database / Storage
-        async function saveAllCounts() {
-            const saveBtn = document.getElementById('saveBtn');
-            const originalText = saveBtn.innerHTML;
-            saveBtn.disabled = true;
-            saveBtn.innerHTML = `<i class="fa-solid fa-spinner animate-spin"></i> Saving...`;
-
-            try {
-                if (isSupabaseActive && supabaseClient) {
-                    const updates = categories.map(c => 
-                        supabaseClient
-                            .from('laundry_counts')
-                            .update({ count: parseInt(c.count) || 0, updated_at: new Date().toISOString() })
-                            .eq('id', c.id)
-                    );
-                    await Promise.all(updates);
-                    showToast('Saved all counts to database!');
-                } else {
-                    saveLocalData();
-                    showToast('Saved locally!');
-                }
-            } catch (err) {
-                console.error(err);
-                showToast('Failed to save counts', 'fa-circle-exclamation text-rose-400');
-            } finally {
-                saveBtn.disabled = false;
-                saveBtn.innerHTML = originalText;
-            }
-        }
-
-        // Download PDF Report
-        function downloadPDFReport() {
-            try {
-                const { jsPDF } = window.jspdf;
-                const doc = new jsPDF();
-
-                const totalItems = categories.reduce((sum, item) => sum + (parseInt(item.count) || 0), 0);
-                const dateStr = new Date().toLocaleString();
-
-                // Title Section
-                doc.setFontSize(18);
-                doc.setTextColor(15, 23, 42); // slate-900
-                doc.text("Laundry Tracker Report", 14, 20);
-
-                doc.setFontSize(10);
-                doc.setTextColor(100, 116, 139); // slate-500
-                doc.text(`Generated on: ${dateStr}`, 14, 28);
-                doc.text(`Storage Mode: ${isSupabaseActive ? 'Supabase Database' : 'Local Storage'}`, 14, 34);
-
-                // Summary Box
-                doc.setDrawColor(226, 232, 240);
-                doc.setFillColor(248, 250, 252);
-                doc.roundedRect(14, 40, 182, 18, 3, 3, 'FD');
-
-                doc.setFontSize(11);
-                doc.setTextColor(15, 23, 42);
-                doc.setFont(undefined, 'bold');
-                doc.text(`Total Clothes Logged: ${totalItems} items`, 20, 52);
-
-                // Table Data Setup
-                const tableData = categories.map((item, index) => [
-                    index + 1,
-                    item.category,
-                    item.count,
-                    item.updated_at ? new Date(item.updated_at).toLocaleTimeString() : '-'
-                ]);
-
-                // AutoTable Generation
-                doc.autoTable({
-                    startY: 64,
-                    head: [['#', 'Category', 'Quantity', 'Last Update']],
-                    body: tableData,
-                    theme: 'striped',
-                    headStyles: {
-                        fillColor: [14, 165, 233], // sky-500
-                        textColor: [255, 255, 255],
-                        fontStyle: 'bold'
-                    },
-                    columnStyles: {
-                        0: { cellWidth: 15 },
-                        1: { cellWidth: 80 },
-                        2: { cellWidth: 40, fontStyle: 'bold' },
-                        3: { cellWidth: 47 }
-                    }
-                });
-
-                // Save PDF File
-                const fileName = `laundry_log_${new Date().toISOString().slice(0, 10)}.pdf`;
-                doc.save(fileName);
-
-                showToast("PDF report downloaded!");
-            } catch (err) {
-                console.error("PDF generation error:", err);
-                showToast("Failed to generate PDF", "fa-circle-exclamation text-rose-400");
-            }
-        }
-
-        // Add Category
-        async function handleAddCategory(e) {
-            e.preventDefault();
-            const input = document.getElementById('newCategoryName');
-            const name = input.value.trim();
-            if (!name) return;
-
-            if (isSupabaseActive && supabaseClient) {
-                const { data, error } = await supabaseClient
-                    .from('laundry_counts')
-                    .insert([{ category: name, count: 0 }])
-                    .select();
-
-                if (!error && data) {
-                    categories.push(data[0]);
-                    showToast(`Added "${name}"`);
-                } else {
-                    showToast('Failed to add category', 'fa-circle-exclamation text-rose-400');
-                }
-            } else {
-                const newItem = {
-                    id: Date.now().toString(),
-                    category: name,
-                    count: 0
-                };
-                categories.push(newItem);
-                saveLocalData();
-                showToast(`Added "${name}"`);
-            }
-
-            input.value = '';
-            render();
-        }
-
-        // Delete Category
-        async function deleteCategory(id) {
-            const item = categories.find(c => c.id === id);
-            if (!item) return;
-
-            categories = categories.filter(c => c.id !== id);
-            render();
-
-            if (isSupabaseActive && supabaseClient) {
-                const { error } = await supabaseClient
-                    .from('laundry_counts')
-                    .delete()
-                    .eq('id', id);
-
-                if (error) showToast('Delete failed', 'fa-circle-exclamation text-rose-400');
-                else showToast(`Deleted "${item.category}"`);
-            } else {
-                saveLocalData();
-                showToast(`Deleted "${item.category}"`);
-            }
-        }
-
-        // Reset All Counts
-        function confirmResetAll() {
-            document.getElementById('confirmModal').classList.remove('hidden');
-        }
-
-        function closeConfirmModal() {
-            document.getElementById('confirmModal').classList.add('hidden');
-        }
-
-        async function executeResetAll() {
-            closeConfirmModal();
-            categories.forEach(c => c.count = 0);
-            render();
-
-            if (isSupabaseActive && supabaseClient) {
-                // Update all items to count = 0
-                const updates = categories.map(c => 
-                    supabaseClient
-                        .from('laundry_counts')
-                        .update({ count: 0, updated_at: new Date().toISOString() })
-                        .eq('id', c.id)
-                );
-                await Promise.all(updates);
-                showToast('All counts reset to 0');
-            } else {
-                saveLocalData();
-                showToast('All counts reset to 0');
-            }
-        }
-
-        // Settings Modal Handlers
-        function openSettingsModal() {
-            document.getElementById('supabaseUrlInput').value = localStorage.getItem('supabase_url') || '';
-            document.getElementById('supabaseKeyInput').value = localStorage.getItem('supabase_key') || '';
-            document.getElementById('settingsModal').classList.remove('hidden');
-        }
-
-        function closeSettingsModal() {
-            document.getElementById('settingsModal').classList.add('hidden');
-        }
-
-        function saveSupabaseSettings(e) {
-            e.preventDefault();
-            const url = document.getElementById('supabaseUrlInput').value.trim();
-            const key = document.getElementById('supabaseKeyInput').value.trim();
-
-            if (url && key) {
-                localStorage.setItem('supabase_url', url);
-                localStorage.setItem('supabase_key', key);
-                initSupabase();
-                fetchData();
-                closeSettingsModal();
-                showToast('Supabase connected!');
-            }
-        }
-
-        function clearSupabaseSettings() {
-            localStorage.removeItem('supabase_url');
-            localStorage.removeItem('supabase_key');
-            useDemoMode();
-            loadLocalData();
-            render();
-            closeSettingsModal();
-            showToast('Cleared Supabase credentials');
-        }
-
-        // Toast Helper
-        function showToast(msg, icon = 'fa-circle-check text-emerald-400') {
-            const toast = document.getElementById('toast');
-            document.getElementById('toastMsg').innerText = msg;
-            document.getElementById('toastIcon').className = `fa-solid ${icon}`;
-
-            toast.classList.remove('translate-y-20', 'opacity-0');
-            setTimeout(() => {
-                toast.classList.add('translate-y-20', 'opacity-0');
-            }, 2200);
-        }
-
-        // Utility: Escape HTML
-        function escapeHtml(str) {
-            return (str || '').replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-        }
-    </script>
+    function escapeHtml(text) {
+      return text.replace(/[&<>"']/g, (m) => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;'
+      })[m]);
+    }
+  </script>
 </body>
 </html>
