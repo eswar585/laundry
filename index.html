@@ -84,6 +84,7 @@
       />
       <button 
         type="submit" 
+        id="add-cat-btn"
         class="bg-slate-800 hover:bg-slate-900 text-white text-sm px-4 py-2 rounded-lg font-medium transition flex items-center gap-1.5 cursor-pointer"
       >
         <i class="fa-solid fa-plus text-xs"></i> Add Category
@@ -98,13 +99,7 @@
     const SUPABASE_KEY = "sb_publishable_LNTQ1QGQjkdDSbKIDNDTuQ_e0UJ59hK";
 
     let supabaseClient = null;
-    let categories = [
-      { id: '1', category: 'Shirts', count: 0 },
-      { id: '2', category: 'Pants', count: 0 },
-      { id: '3', category: 'Socks', count: 0 },
-      { id: '4', category: 'Undergarments', count: 0 },
-      { id: '5', category: 'Bedding', count: 0 }
-    ];
+    let categories = [];
 
     document.addEventListener('DOMContentLoaded', () => {
       initSupabase();
@@ -145,6 +140,15 @@
 
           if (data && data.length > 0) {
             categories = data;
+          } else {
+            // Default initial items if table is completely empty
+            categories = [
+              { category: 'Shirts', count: 0 },
+              { category: 'Pants', count: 0 },
+              { category: 'Socks', count: 0 },
+              { category: 'Undergarments', count: 0 },
+              { category: 'Bedding', count: 0 }
+            ];
           }
         } catch (err) {
           console.error('Error fetching data from Supabase:', err.message);
@@ -241,7 +245,7 @@
       if (supabaseClient) {
         try {
           const payload = categories.map(item => ({
-            ...(item.id && !item.id.toString().startsWith('temp-') ? { id: item.id } : {}),
+            ...(item.id ? { id: item.id } : {}),
             category: item.category,
             count: parseInt(item.count) || 0,
             updated_at: new Date().toISOString()
@@ -262,11 +266,8 @@
           document.getElementById('sync-status').className = 'text-xs text-emerald-600 font-medium';
         } catch (err) {
           console.error('Save failed:', err);
-          alert('Failed to save to Supabase: ' + err.message);
+          alert('Supabase error: ' + err.message + '\n\nMake sure RLS policies allow inserts/upserts on laundry_counts.');
         }
-      } else {
-        document.getElementById('sync-status').innerText = 'Saved locally (No DB connected)';
-        document.getElementById('sync-status').className = 'text-xs text-slate-500';
       }
 
       saveBtn.disabled = false;
@@ -287,20 +288,20 @@
         return;
       }
 
-      const newItem = {
-        id: 'temp-' + Date.now(),
+      // Optimistically push to local array
+      categories.push({
         category: catName,
         count: 0
-      };
+      });
 
-      categories.push(newItem);
       input.value = '';
+      renderUI();
 
+      // Immediately persist to Supabase if connected
       if (supabaseClient) {
         await saveAllToSupabase();
       } else {
         markUnsaved();
-        renderUI();
       }
     }
 
@@ -308,7 +309,7 @@
       const target = categories[index];
       if (!confirm(`Are you sure you want to remove "${target.category}"?`)) return;
 
-      if (supabaseClient && target.id && !target.id.toString().startsWith('temp-')) {
+      if (supabaseClient && target.id) {
         try {
           const { error } = await supabaseClient
             .from('laundry_counts')
