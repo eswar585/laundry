@@ -5,8 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Laundry Tracker</title>
   
-  <!-- Tailwind CSS CDN -->
-  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Inline SVG Favicon -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>👕</text></svg>">
+
+  <!-- Tailwind CSS Production CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
   <!-- FontAwesome Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <!-- Supabase JS Client -->
@@ -26,7 +29,7 @@
       </div>
       <div id="connection-status-badge" class="text-xs bg-indigo-700/80 px-3 py-1.5 rounded-lg border border-indigo-500/50 flex items-center gap-1.5">
         <span class="w-2 h-2 rounded-full bg-amber-400" id="status-dot"></span>
-        <span id="status-text">Checking Connection...</span>
+        <span id="status-text">Connecting...</span>
       </div>
     </div>
   </header>
@@ -43,15 +46,15 @@
 
       <!-- Main Action Buttons -->
       <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-        <button id="save-btn" onclick="saveAllToSupabase()" class="flex-1 sm:flex-none bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-4 py-2.5 rounded-lg shadow-sm transition flex items-center justify-center gap-2 text-sm">
+        <button id="save-btn" onclick="saveAllToSupabase()" class="flex-1 sm:flex-none bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-4 py-2.5 rounded-lg shadow-sm transition flex items-center justify-center gap-2 text-sm cursor-pointer">
           <i class="fa-solid fa-floppy-disk"></i> Save to DB
         </button>
 
-        <button onclick="downloadPDF()" class="flex-1 sm:flex-none bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-4 py-2.5 rounded-lg shadow-sm transition flex items-center justify-center gap-2 text-sm">
+        <button onclick="downloadPDF()" class="flex-1 sm:flex-none bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-4 py-2.5 rounded-lg shadow-sm transition flex items-center justify-center gap-2 text-sm cursor-pointer">
           <i class="fa-solid fa-file-pdf"></i> Download PDF
         </button>
 
-        <button onclick="resetAllCounts()" class="flex-1 sm:flex-none bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-600 font-medium px-3 py-2.5 rounded-lg border border-slate-200 transition flex items-center justify-center gap-2 text-sm">
+        <button onclick="resetAllCounts()" class="flex-1 sm:flex-none bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-600 font-medium px-3 py-2.5 rounded-lg border border-slate-200 transition flex items-center justify-center gap-2 text-sm cursor-pointer">
           <i class="fa-solid fa-rotate-left"></i> Reset
         </button>
       </div>
@@ -81,7 +84,7 @@
       />
       <button 
         type="submit" 
-        class="bg-slate-800 hover:bg-slate-900 text-white text-sm px-4 py-2 rounded-lg font-medium transition flex items-center gap-1.5"
+        class="bg-slate-800 hover:bg-slate-900 text-white text-sm px-4 py-2 rounded-lg font-medium transition flex items-center gap-1.5 cursor-pointer"
       >
         <i class="fa-solid fa-plus text-xs"></i> Add Category
       </button>
@@ -90,14 +93,10 @@
 
   <!-- JavaScript Application Logic -->
   <script>
-    // ==========================================
-    // PASTE YOUR SUPABASE CREDENTIALS HERE:
-    // ==========================================
+    // Configured Supabase Credentials
     const SUPABASE_URL = "https://vimnqjbupcffqzuvlpbi.supabase.co";
     const SUPABASE_KEY = "sb_publishable_LNTQ1QGQjkdDSbKIDNDTuQ_e0UJ59hK";
-    // ==========================================
 
-    // State management
     let supabaseClient = null;
     let categories = [
       { id: '1', category: 'Shirts', count: 0 },
@@ -107,7 +106,6 @@
       { id: '5', category: 'Bedding', count: 0 }
     ];
 
-    // Initialization
     document.addEventListener('DOMContentLoaded', () => {
       initSupabase();
       fetchCategories();
@@ -117,7 +115,7 @@
       const statusDot = document.getElementById('status-dot');
       const statusText = document.getElementById('status-text');
 
-      if (SUPABASE_URL && SUPABASE_KEY && SUPABASE_URL !== "https://vimnqjbupcffqzuvlpbi.supabase.co" && window.supabase) {
+      if (window.supabase && SUPABASE_URL && SUPABASE_KEY) {
         try {
           supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
           statusDot.className = "w-2 h-2 rounded-full bg-emerald-400 animate-pulse";
@@ -131,7 +129,7 @@
       } else {
         supabaseClient = null;
         statusDot.className = "w-2 h-2 rounded-full bg-amber-400";
-        statusText.innerText = "Local Mode (Add Credentials)";
+        statusText.innerText = "Local Mode";
       }
     }
 
@@ -177,7 +175,7 @@
             <div class="flex items-center gap-2">
               <button 
                 onclick="updateCount(${index}, -1)"
-                class="w-9 h-9 flex items-center justify-center rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-slate-600 font-bold active:scale-95 transition shadow-xs"
+                class="w-9 h-9 flex items-center justify-center rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-slate-600 font-bold active:scale-95 transition shadow-xs cursor-pointer"
               >
                 -
               </button>
@@ -192,7 +190,7 @@
 
               <button 
                 onclick="updateCount(${index}, 1)"
-                class="w-9 h-9 flex items-center justify-center rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-slate-600 font-bold active:scale-95 transition shadow-xs"
+                class="w-9 h-9 flex items-center justify-center rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-slate-600 font-bold active:scale-95 transition shadow-xs cursor-pointer"
               >
                 +
               </button>
@@ -200,7 +198,7 @@
               <button 
                 onclick="deleteCategory(${index})"
                 title="Delete Category"
-                class="w-9 h-9 flex items-center justify-center text-slate-300 hover:text-rose-500 transition ml-2"
+                class="w-9 h-9 flex items-center justify-center text-slate-300 hover:text-rose-500 transition ml-2 cursor-pointer"
               >
                 <i class="fa-solid fa-trash-can text-sm"></i>
               </button>
@@ -336,7 +334,6 @@
       renderUI();
     }
 
-    // Export PDF Summary Report
     function downloadPDF() {
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF();
